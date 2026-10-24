@@ -125,6 +125,12 @@ Both Node services run this build:
 npm ci --include=dev && npm run build
 ```
 
+Each service builds from its own Root Directory. The repository root is not a
+deployable unit: its `package.json` is a workspace manifest, and installing from
+the root does not install either application's dependencies. Do not create a
+Render service from the repository root or run the root `build` script on Render.
+The dashboard deploys to Vercel; Render hosts only the API and worker.
+
 Both run this pre-deploy migration before starting:
 
 ```text
@@ -355,6 +361,7 @@ put secrets in them.
 | Vercel fails with `NEXT_NO_VERSION` or "Could not identify Next.js version" | The Vercel Root Directory is the repository root. Set it to `frontend`, keep Framework Preset as Next.js, and redeploy. The install command should be `npm install`, not `npm install --prefix frontend` |
 | Vercel custom domain assignment fails | The production deployment must be Ready first. If the domain is already attached to another Vercel project or account, remove it there. Add the exact DNS records Vercel shows for the domain, then wait for verification |
 | Vercel warns that `engines.node` will auto-upgrade | Optional: set the project's Node.js version to 22.x in Vercel project settings, or pin `engines.node` to a fixed major. This warning does not cause the build failure |
+| Render build fails with `sh: 1: next: not found` | A Render service is building from the repository root, where no Next.js dependency is installed. Delete that service and deploy the API and worker from the Blueprint with Root Directory `backend`; deploy the dashboard to Vercel with Root Directory `frontend` |
 | API exits with `[env] Invalid environment configuration` | `JWT_SECRET` is at least 32 characters, is not a documented placeholder, `DEV_AUTH_ENABLED=false`, and required URLs are valid |
 | API logs `invalid production configuration` | `FRONTEND_URL` and `GOOGLE_CALLBACK_URL` must be HTTPS and both Google credentials must be set |
 | `/health` returns 503 | Postgres or Key Value is unavailable; verify `DATABASE_URL` and `REDIS_URL` and same-region networking |
