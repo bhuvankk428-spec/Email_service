@@ -10,7 +10,7 @@ The repository runs in two modes that share one codebase:
 The Next.js dashboard is identical in both modes and deploys to Vercel.
 
 - **Live demo:** <https://emailserviceoutlab.vercel.app/>
-- **Demo video:** <https://www.youtube.com/watch?v=REPLACE_WITH_VIDEO_ID>
+- **Demo video:** <https://drive.google.com/file/d/1qngtgkuQTSHWFt0mK1u09gPqqSYPcab6/view?usp=sharing>
 
 ## Contents
 
