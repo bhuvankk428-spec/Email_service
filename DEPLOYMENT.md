@@ -69,9 +69,11 @@ deployment because the rewrite is generated during the build.
 5. Deploy and copy the production frontend URL, for example
    `https://reachinbox.vercel.app`.
 
-Use a Vercel project whose Root Directory is `frontend`. The repository-root
-`vercel.json` is not used in this layout, and the rewrite environment variables
-must be present in the Vercel project itself.
+Use a Vercel project whose Root Directory is `frontend`. The configuration file
+is `frontend/vercel.json`, and the rewrite environment variables must be present
+in the Vercel project itself. Do not deploy from the repository root: Vercel
+would look for `next` in the root `package.json`, which is a workspace manifest,
+and fail with `NEXT_NO_VERSION`.
 
 ## Step 2: Create the Google OAuth client
 
@@ -350,6 +352,9 @@ put secrets in them.
 
 | Symptom | Check |
 | --- | --- |
+| Vercel fails with `NEXT_NO_VERSION` or "Could not identify Next.js version" | The Vercel Root Directory is the repository root. Set it to `frontend`, keep Framework Preset as Next.js, and redeploy. The install command should be `npm install`, not `npm install --prefix frontend` |
+| Vercel custom domain assignment fails | The production deployment must be Ready first. If the domain is already attached to another Vercel project or account, remove it there. Add the exact DNS records Vercel shows for the domain, then wait for verification |
+| Vercel warns that `engines.node` will auto-upgrade | Optional: set the project's Node.js version to 22.x in Vercel project settings, or pin `engines.node` to a fixed major. This warning does not cause the build failure |
 | API exits with `[env] Invalid environment configuration` | `JWT_SECRET` is at least 32 characters, is not a documented placeholder, `DEV_AUTH_ENABLED=false`, and required URLs are valid |
 | API logs `invalid production configuration` | `FRONTEND_URL` and `GOOGLE_CALLBACK_URL` must be HTTPS and both Google credentials must be set |
 | `/health` returns 503 | Postgres or Key Value is unavailable; verify `DATABASE_URL` and `REDIS_URL` and same-region networking |

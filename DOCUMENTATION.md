@@ -196,7 +196,7 @@ and enforce the same delay and hourly rules.
 |- scripts/smoke-local.mjs         Zero-dependency local end-to-end smoke check
 |- docker-compose.yml              Production-shaped PostgreSQL/Redis/BullMQ stack
 |- render.yaml                     Render API, worker, PostgreSQL, and Key Value Blueprint
-|- vercel.json                     Frontend-root Vercel configuration
+|- frontend/vercel.json            Vercel project configuration for the dashboard
 |- DEPLOYMENT.md                   Vercel + Render production runbook
 |- HOW_TO_RUN.md                   Local runbook and demo checklist
 |- README.md                       Project entry point
@@ -919,8 +919,8 @@ is the zero-dependency SQLite path described in the next subsection.
 - Final re-run after the documentation and UI copy edits: backend typecheck,
   32 tests in 7 files, and build passed; frontend lint (0 errors, 2 existing
   `<img>` warnings) and production build passed; `npm run test:local` reported
-  `all local-mode checks passed`; `docker compose config`, `vercel.json`, and
-  `render.yaml` parsed successfully. A frontend build with
+  `all local-mode checks passed`; `docker compose config`,
+  `frontend/vercel.json`, and `render.yaml` parsed successfully. A frontend build with
   `NEXT_PUBLIC_API_BASE_URL=/api` and `API_PROXY_TARGET` set produced the
   expected `/api/:path*` rewrite in the build manifest.
 
@@ -2201,9 +2201,10 @@ files involved are:
 
 - `render.yaml`: the Render Blueprint for the API and worker services, Postgres
   16, Key Value, and a shared runtime environment group.
-- `frontend/vercel.json`: Vercel project configuration. The recommended Vercel
-  Root Directory is `frontend`; the repository-root `vercel.json` is legacy and
-  is not part of this layout.
+- `frontend/vercel.json`: Vercel project configuration. The Vercel project must
+  use `frontend` as its Root Directory. Do not deploy the repository root:
+  Vercel then looks for `next` in the root `package.json` and fails with
+  `NEXT_NO_VERSION`.
 - `frontend/next.config.ts`: the `/api/*` rewrite to the Render API.
 - `backend/Dockerfile`: the API and worker image used by Docker Compose and
   alternative container hosts.
