@@ -1,0 +1,28 @@
+{
+  "name": "reachinbox-scheduler-workspace",
+  "version": "1.0.0",
+  "description": "ReachInbox Full-Stack Email Job Scheduler (Monorepo Workspace)",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node scripts/dev.mjs",
+    "dev": "node scripts/dev.mjs",
+    "setup": "node scripts/dev.mjs --setup-only",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "dev:backend": "npm run dev --prefix backend",
+    "dev:worker": "npm run worker --prefix backend",
+    "test:load": "npm run test:load --prefix backend --",
+    "test:local": "node scripts/smoke-local.mjs",
+    "build:frontend": "npm run build --prefix frontend",
+    "build:backend": "npm run build --prefix backend",
+    "build": "npm run build:frontend && npm run build:backend",
+    "start:frontend": "npm run start --prefix frontend",
+    "start:backend": "npm run start --prefix backend",
+    "start:worker": "npm run start:worker --prefix backend",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:build": "docker compose build"
+  }
+}

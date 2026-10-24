@@ -1,0 +1,11 @@
+node_modules
+dist
+generated
+.git
+.env
+*.log
+prisma/*.db
+prisma/*.db-journal
+prisma/*.db-shm
+prisma/*.db-wal
+.mail-outbox

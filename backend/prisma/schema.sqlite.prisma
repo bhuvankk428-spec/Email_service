@@ -1,0 +1,81 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/sqlite-client"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  googleId  String   @unique
+  email     String
+  name      String
+  avatar    String?
+  createdAt DateTime @default(now())
+  batches   Batch[]
+  emails    Email[]
+  senders   Sender[]
+}
+
+model Sender {
+  id     String  @id @default(uuid())
+  userId String?
+  owner  User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  host   String
+  port   Int
+  user   String  @unique
+  pass   String
+  emails Email[]
+
+  @@index([userId])
+}
+
+model Batch {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  subject        String
+  body           String
+  startTime      DateTime
+  delayMs        Int
+  hourlyLimit    Int
+  total          Int
+  idempotencyKey String?
+  createdAt      DateTime @default(now())
+  emails         Email[]
+
+  @@unique([userId, idempotencyKey])
+}
+
+model Email {
+  id          String   @id @default(uuid())
+  batchId     String
+  batch       Batch    @relation(fields: [batchId], references: [id])
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  senderId    String
+  sender      Sender   @relation(fields: [senderId], references: [id])
+  toEmail     String
+  subject     String
+  body        String
+  seq         Int
+  scheduledAt DateTime
+  status      String   @default("SCHEDULED")
+  attempts    Int      @default(0)
+  claimedAt   DateTime?
+  finishedAt  DateTime?
+  messageId   String?
+  previewUrl  String?
+  error       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([batchId, toEmail])
+  @@index([userId, status, scheduledAt])
+  @@index([userId, status, finishedAt(sort: Desc)])
+  @@index([senderId, scheduledAt])
+  @@index([status, scheduledAt])
+}

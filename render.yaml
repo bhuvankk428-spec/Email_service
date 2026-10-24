@@ -1,0 +1,100 @@
+databases:
+  - name: reachinbox-db
+    postgresMajorVersion: "16"
+    plan: 0.1c-256mb
+    region: oregon
+    ipAllowList: []
+
+envVarGroups:
+  - name: reachinbox-runtime
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DEV_AUTH_ENABLED
+        value: "false"
+      - key: QUEUE_DRIVER
+        value: bullmq
+      - key: MAIL_TRANSPORT
+        value: ethereal
+      - key: COOKIE_SAMESITE
+        value: none
+      - key: WORKER_CONCURRENCY
+        value: "5"
+      - key: MIN_DELAY_BETWEEN_EMAILS_MS
+        value: "2000"
+      - key: MAX_EMAILS_PER_HOUR_PER_SENDER
+        value: "100"
+      - key: RATE_WINDOW_MS
+        value: "3600000"
+      - key: CLAIM_TTL_MS
+        value: "120000"
+      - key: SENDER_COUNT
+        value: "3"
+
+services:
+  - type: keyvalue
+    name: reachinbox-kv
+    region: oregon
+    plan: 256mb
+    ipAllowList: []
+    maxmemoryPolicy: noeviction
+    persistenceMode: journal-snapshot
+
+  - type: web
+    name: reachinbox-api
+    runtime: node
+    rootDir: backend
+    region: oregon
+    plan: 0.5c-512mb
+    buildCommand: npm ci --include=dev && npm run build
+    preDeployCommand: npx prisma migrate deploy
+    startCommand: npm run start
+    healthCheckPath: /health
+    maxShutdownDelaySeconds: 30
+    envVars:
+      - fromGroup: reachinbox-runtime
+      - key: DATABASE_URL
+        fromDatabase:
+          name: reachinbox-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: reachinbox-kv
+          type: keyvalue
+          property: connectionString
+      - key: FRONTEND_URL
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_CALLBACK_URL
+        sync: false
+      - key: EMBED_WORKER
+        value: "false"
+
+  - type: worker
+    name: reachinbox-worker
+    runtime: node
+    rootDir: backend
+    region: oregon
+    plan: 0.5c-512mb
+    buildCommand: npm ci --include=dev && npm run build
+    preDeployCommand: npx prisma migrate deploy
+    startCommand: npm run start:worker
+    maxShutdownDelaySeconds: 60
+    envVars:
+      - fromGroup: reachinbox-runtime
+      - key: DATABASE_URL
+        fromDatabase:
+          name: reachinbox-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: reachinbox-kv
+          type: keyvalue
+          property: connectionString

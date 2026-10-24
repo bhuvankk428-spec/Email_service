@@ -1,0 +1,155 @@
+name: reachinbox
+
+x-backend-environment: &backend-environment
+  NODE_ENV: ${NODE_ENV:-development}
+  PORT: 4000
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  DATABASE_URL: ${DATABASE_URL:-postgresql://scheduler:scheduler@postgres:5432/reachinbox_scheduler?schema=public}
+  REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+  QUEUE_DRIVER: bullmq
+  MAIL_TRANSPORT: ${MAIL_TRANSPORT:-ethereal}
+  FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+  JWT_SECRET: ${JWT_SECRET:-local-demo-jwt-secret-change-me}
+  GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID:-}"
+  GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET:-}"
+  GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-http://localhost:3000/api/auth/google/callback}
+  DEV_AUTH_ENABLED: ${DEV_AUTH_ENABLED:-true}
+  COOKIE_SAMESITE: ${COOKIE_SAMESITE:-lax}
+  EMBED_WORKER: "false"
+  WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-5}
+  MIN_DELAY_BETWEEN_EMAILS_MS: ${MIN_DELAY_BETWEEN_EMAILS_MS:-2000}
+  MAX_EMAILS_PER_HOUR_PER_SENDER: ${MAX_EMAILS_PER_HOUR_PER_SENDER:-100}
+  RATE_WINDOW_MS: ${RATE_WINDOW_MS:-3600000}
+  CLAIM_TTL_MS: ${CLAIM_TTL_MS:-120000}
+  SENDER_COUNT: ${SENDER_COUNT:-3}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: reachinbox_postgres
+    environment:
+      POSTGRES_USER: scheduler
+      POSTGRES_PASSWORD: scheduler
+      POSTGRES_DB: reachinbox_scheduler
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scheduler -d reachinbox_scheduler"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: reachinbox_redis
+    command:
+      [
+        "redis-server",
+        "--appendonly",
+        "yes",
+        "--appendfsync",
+        "everysec",
+        "--maxmemory-policy",
+        "noeviction"
+      ]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: migrator
+    container_name: reachinbox_migrate
+    environment: *backend-environment
+    command: ["npx", "prisma", "migrate", "deploy"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: runner
+    container_name: reachinbox_api
+    environment: *backend-environment
+    ports:
+      - "${API_PORT:-4000}:4000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: runner
+    container_name: reachinbox_worker
+    command: ["node", "dist/worker.js"]
+    environment: *backend-environment
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api}
+        API_PROXY_TARGET: ${API_PROXY_TARGET:-http://api:4000}
+        NEXT_PUBLIC_DEV_AUTH_ENABLED: ${DEV_AUTH_ENABLED:-true}
+    container_name: reachinbox_frontend
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
